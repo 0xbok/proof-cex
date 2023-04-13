@@ -1,0 +1,21 @@
+[package]
+name = "r1cs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "r1cs"
+path = "src/lib.rs"
+
+[features]
+default = ["dev-graph"]
+dev-graph = ["halo2_proofs/dev-graph"]
+
+[dependencies]
+halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git" }
+plotters = { version = "0.3.0", optional = false }
+tabbycat = { version = "0.1", features = ["attributes"], optional = false }
+
+[dev-dependencies]
+assert_matches = "1.5"
+criterion = "0.3"

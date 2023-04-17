@@ -12,6 +12,7 @@ default = ["dev-graph"]
 dev-graph = ["halo2_proofs/dev-graph"]
 
 [dependencies]
+rand_core = { version = "0.6", default-features = false }
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git" }
 plotters = { version = "0.3.0", optional = false }
 tabbycat = { version = "0.1", features = ["attributes"], optional = false }

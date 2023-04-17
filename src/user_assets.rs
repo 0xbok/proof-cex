@@ -2,17 +2,19 @@ use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{
-        Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector, Expression, keygen_pk, keygen_vk
+        Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector, Expression, keygen_pk, keygen_vk, create_proof, verify_proof
     },
     poly::{
         Rotation,
-        kzg::commitment::ParamsKZG,
+        kzg::{commitment::{ParamsKZG, KZGCommitmentScheme}, multiopen::{ProverGWC, VerifierGWC}, strategy::SingleStrategy},
         commitment::ParamsProver,
     },
-    halo2curves::bn256::{Bn256, Fr as Fp}
+    halo2curves::bn256::{Bn256, Fr as Fp},
+    transcript::{Blake2bWrite, Challenge255, TranscriptWriterBuffer, self, Blake2bRead, TranscriptReadBuffer}
 };
 // use halo2curves::pasta_curves::EqAffine;
 use std::marker::PhantomData;
+use rand_core::OsRng;
 
 static MAX_BITS: i32 = -4;
 // static NUM_USERS: u32 = 4;
@@ -215,10 +217,10 @@ fn prepare_columns(user_hashes: &[u64], user_bal: &[u64]) -> (Vec<u64>, Vec<u64>
     (p,aux,sel)
 }
 
-fn keygen(k: u32) -> Result<(), Error> {
+fn prove(k: u32, user_hashes: Vec<u64>, user_bal: Vec<u64>) -> Result<(), Error> {
+    let total_balance: u64 = user_bal.iter().sum();
+
     let params: ParamsKZG<Bn256> = ParamsKZG::<Bn256>::new(k);
-    let user_hashes: Vec<u64> = vec![1, 2, 3];
-    let user_bal: Vec<u64> = vec![3, 4, 10];
     let (p, aux, sel) = prepare_columns(&user_hashes, &user_bal);
     let p_fp: Vec<Fp> = p.iter().map(|&num| Fp::from(num)).collect();
     let aux_fp: Vec<Fp> = aux.iter().map(|&num| Fp::from(num)).collect();
@@ -229,18 +231,42 @@ fn keygen(k: u32) -> Result<(), Error> {
         sel: sel,
     };
 
-
-    println!("Generating Verification Key");
     let vk = keygen_vk(&params, &circuit).expect("keygen_vk failed");
 
     let pk = keygen_pk(&params, vk, &circuit).expect("keygen_pk failed");
+
+    let mut transcript = Blake2bWrite::<_, _, Challenge255<_>>::init(vec![]);
+
+    create_proof::<KZGCommitmentScheme<Bn256>, ProverGWC<Bn256>, _, _, _, _>(
+        &params,
+        &pk,
+        &[circuit],
+        &[&[&vec![Fp::from(total_balance)]]],
+        OsRng,
+        &mut transcript,
+    ).expect("proof gen failed");
+
+    let proof = transcript.finalize();
+
+    let transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
+    let strategy = SingleStrategy::new(&params);
+
+    verify_proof::<_, VerifierGWC<Bn256>, _, _, _>(
+        &params,
+        pk.get_vk(),
+        strategy.clone(),
+        &[&[&vec![Fp::from(total_balance)]]],
+        &mut transcript.clone()
+    ).unwrap();
     Ok(())
+
 }
 
 #[cfg(test)]
 mod tests {
     use super::R1CSCircuit;
-    use crate::user_assets::{prepare_columns, keygen};
+    use crate::user_assets::{prepare_columns, prove};
+    use halo2_proofs::halo2curves::bn256::Fr as Fp;
 
 
     #[test]
@@ -276,7 +302,12 @@ mod tests {
         prover.assert_satisfied();
     }
 
+    #[test]
     fn test_keygen() {
-        assert!(keygen(5).is_ok());
+        let k = 5;
+        let user_hashes: Vec<u64> = vec![1, 2, 3];
+        let user_bal: Vec<u64> = vec![3, 4, 10];
+
+        assert!(prove(k, user_hashes, user_bal).is_ok());
     }
 }

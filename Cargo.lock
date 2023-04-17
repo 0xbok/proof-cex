@@ -534,6 +534,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ff"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
+dependencies = [
+ "bitvec",
+ "rand_core",
+ "subtle",
+]
+
+[[package]]
 name = "flate2"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -649,7 +660,18 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dfbfb3a6cfbd390d5c9564ab283a0349b9b9fcd46a706c1eb10e0db70bfbac7"
 dependencies = [
- "ff",
+ "ff 0.12.1",
+ "rand_core",
+ "subtle",
+]
+
+[[package]]
+name = "group"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
+dependencies = [
+ "ff 0.13.0",
  "rand_core",
  "subtle",
 ]
@@ -666,9 +688,9 @@ version = "0.2.0"
 source = "git+https://github.com/privacy-scaling-explorations/halo2.git#50ee8ad785c53232824e60b4ff6df32b69970358"
 dependencies = [
  "blake2b_simd",
- "ff",
- "group",
- "halo2curves",
+ "ff 0.12.1",
+ "group 0.12.1",
+ "halo2curves 0.2.1",
  "plotters",
  "rand_core",
  "rayon",
@@ -681,12 +703,30 @@ name = "halo2curves"
 version = "0.2.1"
 source = "git+https://github.com/privacy-scaling-explorations/halo2curves?tag=0.3.0#83c72d49762343ffc9576ca11a2aa615efe1029b"
 dependencies = [
- "ff",
- "group",
+ "ff 0.12.1",
+ "group 0.12.1",
  "lazy_static",
  "num-bigint",
  "num-traits",
- "pasta_curves",
+ "pasta_curves 0.4.1",
+ "rand",
+ "rand_core",
+ "static_assertions",
+ "subtle",
+]
+
+[[package]]
+name = "halo2curves"
+version = "0.3.2"
+source = "git+https://github.com/privacy-scaling-explorations/halo2curves?tag=0.3.2#9f5c50810bbefe779ee5cf1d852b2fe85dc35d5e"
+dependencies = [
+ "ff 0.13.0",
+ "group 0.13.0",
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+ "pasta_curves 0.5.1",
+ "paste",
  "rand",
  "rand_core",
  "static_assertions",
@@ -788,6 +828,9 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+dependencies = [
+ "spin",
+]
 
 [[package]]
 name = "libc"
@@ -917,13 +960,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5cc65faf8e7313b4b1fbaa9f7ca917a0eed499a9663be71477f87993604341d8"
 dependencies = [
  "blake2b_simd",
- "ff",
- "group",
+ "ff 0.12.1",
+ "group 0.12.1",
  "lazy_static",
  "rand",
  "static_assertions",
  "subtle",
 ]
+
+[[package]]
+name = "pasta_curves"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3e57598f73cc7e1b2ac63c79c517b31a0877cd7c402cdcaa311b5208de7a095"
+dependencies = [
+ "blake2b_simd",
+ "ff 0.13.0",
+ "group 0.13.0",
+ "lazy_static",
+ "rand",
+ "static_assertions",
+ "subtle",
+]
+
+[[package]]
+name = "paste"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 
 [[package]]
 name = "pathfinder_geometry"
@@ -1046,17 +1110,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8856d8364d252a14d474036ea1358d63c9e6965c8e5c1885c18f73d70bff9c7b"
 dependencies = [
  "proc-macro2",
-]
-
-[[package]]
-name = "r1cs"
-version = "0.1.0"
-dependencies = [
- "assert_matches",
- "criterion",
- "halo2_proofs",
- "plotters",
- "tabbycat",
 ]
 
 [[package]]
@@ -1253,6 +1306,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "spin"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1412,6 +1471,18 @@ name = "unicode-width"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
+
+[[package]]
+name = "user_assets"
+version = "0.1.0"
+dependencies = [
+ "assert_matches",
+ "criterion",
+ "halo2_proofs",
+ "halo2curves 0.3.2",
+ "plotters",
+ "tabbycat",
+]
 
 [[package]]
 name = "walkdir"

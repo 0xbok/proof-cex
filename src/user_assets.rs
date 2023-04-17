@@ -2,10 +2,16 @@ use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{
-        Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector, Expression
+        Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector, Expression, keygen_pk, keygen_vk
     },
-    poly::Rotation,
+    poly::{
+        Rotation,
+        kzg::commitment::ParamsKZG,
+        commitment::ParamsProver,
+    },
+    halo2curves::bn256::{Bn256, Fr as Fp}
 };
+// use halo2curves::pasta_curves::EqAffine;
 use std::marker::PhantomData;
 
 static MAX_BITS: i32 = -4;
@@ -161,59 +167,81 @@ impl<F: FieldExt> Circuit<F> for R1CSCircuit<F> {
     }
 }
 
+// all user balances are < 2^k.
+fn balance_2_pow_k(nums: &[u64]) -> u32 {
+    let max_num = nums.iter().cloned().max().unwrap_or(0);
+    let k = f64::log2(max_num as f64).floor() as u32 + 1;
+    assert!(k == -MAX_BITS as u32, "user balances exceed MAX_BITS");
+    k
+}
+
+fn prepare_columns(user_hashes: &[u64], user_bal: &[u64]) -> (Vec<u64>, Vec<u64>, [Vec<bool>; 5]) {
+    let k = balance_2_pow_k(user_bal);
+    dbg!(k);
+
+    let len = ((k+1)*(user_hashes.len() as u32)) as usize;
+    let mut p: Vec<u64> = vec![0; len];
+    let mut aux: Vec<u64> = vec![0; len];
+    let mut sel = [vec![false; len], vec![false; len], vec![false; len], vec![false; len], vec![false; len]];
+
+    let mut cumulative_sum = 0;
+    for i in 0..user_hashes.len() {
+        cumulative_sum += user_bal[i];
+        let mut last_idx = i*(k as usize+1)+k as usize;
+
+        aux[last_idx] = cumulative_sum;
+        if i==0 {
+            sel[3][last_idx] = true;
+        } else {
+            sel[4][last_idx] = true;
+        }
+
+        aux[last_idx-1] = user_bal[i];
+        p[last_idx-1] = user_bal[i];
+        sel[0][last_idx-1] = true; // selector for user balance match
+
+        p[last_idx-2] = user_hashes[i];
+
+        last_idx -= 1;
+        for _ in (0 as usize)..((k-1) as usize) {
+            last_idx -= 1;
+            aux[last_idx] = aux[last_idx+1]/2;
+            sel[2][last_idx+1] = true; // aux extends by 1 bit from previous
+        }
+
+        sel[1][last_idx] = true; // selector for initial aux value to be binary
+    }
+
+    (p,aux,sel)
+}
+
+fn keygen(k: u32) -> Result<(), Error> {
+    let params: ParamsKZG<Bn256> = ParamsKZG::<Bn256>::new(k);
+    let user_hashes: Vec<u64> = vec![1, 2, 3];
+    let user_bal: Vec<u64> = vec![3, 4, 10];
+    let (p, aux, sel) = prepare_columns(&user_hashes, &user_bal);
+    let p_fp: Vec<Fp> = p.iter().map(|&num| Fp::from(num)).collect();
+    let aux_fp: Vec<Fp> = aux.iter().map(|&num| Fp::from(num)).collect();
+
+    let circuit = R1CSCircuit {
+        a: p_fp,
+        b: aux_fp,
+        sel: sel,
+    };
+
+
+    println!("Generating Verification Key");
+    let vk = keygen_vk(&params, &circuit).expect("keygen_vk failed");
+
+    let pk = keygen_pk(&params, vk, &circuit).expect("keygen_pk failed");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::R1CSCircuit;
-    use halo2_proofs::halo2curves::bn256::Fr as Fp;
-    use crate::r1cs::MAX_BITS;
+    use crate::user_assets::{prepare_columns, keygen};
 
-    // all user balances are < 2^k.
-    fn balance_2_pow_k(nums: &[u64]) -> u32 {
-        let max_num = nums.iter().cloned().max().unwrap_or(0);
-        let k = f64::log2(max_num as f64).floor() as u32 + 1;
-        assert!(k == -MAX_BITS as u32, "user balances exceed MAX_BITS");
-        k
-    }
-
-    fn prepare_columns(user_hashes: &[u64], user_bal: &[u64]) -> (Vec<u64>, Vec<u64>, [Vec<bool>; 5]) {
-        let k = balance_2_pow_k(user_bal);
-        dbg!(k);
-
-        let len = ((k+1)*(user_hashes.len() as u32)) as usize;
-        let mut p: Vec<u64> = vec![0; len];
-        let mut aux: Vec<u64> = vec![0; len];
-        let mut sel = [vec![false; len], vec![false; len], vec![false; len], vec![false; len], vec![false; len]];
-
-        let mut cumulative_sum = 0;
-        for i in 0..user_hashes.len() {
-            cumulative_sum += user_bal[i];
-            let mut last_idx = i*(k as usize+1)+k as usize;
-
-            aux[last_idx] = cumulative_sum;
-            if i==0 {
-                sel[3][last_idx] = true;
-            } else {
-                sel[4][last_idx] = true;
-            }
-
-            aux[last_idx-1] = user_bal[i];
-            p[last_idx-1] = user_bal[i];
-            sel[0][last_idx-1] = true; // selector for user balance match
-
-            p[last_idx-2] = user_hashes[i];
-
-            last_idx -= 1;
-            for _ in (0 as usize)..((k-1) as usize) {
-                last_idx -= 1;
-                aux[last_idx] = aux[last_idx+1]/2;
-                sel[2][last_idx+1] = true; // aux extends by 1 bit from previous
-            }
-
-            sel[1][last_idx] = true; // selector for initial aux value to be binary
-        }
-
-        (p,aux,sel)
-    }
 
     #[test]
     fn test_r1cs() {
@@ -230,7 +258,7 @@ mod tests {
         assert_eq!(p.len(), aux.len());
 
         for i in 0..p.len() {
-            println!("{:?} {:?} {:?} {:?} {:?} {:?} {:?}", p[i], aux[i], sel[0][i], sel[1][i], sel[2][i], sel[3][i], sel[4][i], );
+            println!("{:?} {:?} {:?} {:?} {:?} {:?} {:?}", p[i], aux[i], sel[0][i], sel[1][i], sel[2][i], sel[3][i], sel[4][i]);
         }
 
         let p_fp: Vec<Fp> = p.iter().map(|&num| Fp::from(num)).collect();
@@ -246,5 +274,9 @@ mod tests {
 
         let prover = MockProver::run(k, &circuit, vec![public_inputs]).unwrap();
         prover.assert_satisfied();
+    }
+
+    fn test_keygen() {
+        assert!(keygen(5).is_ok());
     }
 }

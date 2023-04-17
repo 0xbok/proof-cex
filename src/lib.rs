@@ -1,1 +1,1 @@
-mod r1cs;
+mod user_assets;

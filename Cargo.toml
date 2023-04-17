@@ -1,10 +1,10 @@
 [package]
-name = "r1cs"
+name = "user_assets"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "r1cs"
+name = "user_assets"
 path = "src/lib.rs"
 
 [features]
@@ -15,6 +15,7 @@ dev-graph = ["halo2_proofs/dev-graph"]
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git" }
 plotters = { version = "0.3.0", optional = false }
 tabbycat = { version = "0.1", features = ["attributes"], optional = false }
+halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.3.2" }
 
 [dev-dependencies]
 assert_matches = "1.5"

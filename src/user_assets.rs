@@ -10,7 +10,7 @@ use halo2_proofs::{
         commitment::ParamsProver,
     },
     halo2curves::bn256::{Bn256, Fr as Fp},
-    transcript::{Blake2bWrite, Challenge255, TranscriptWriterBuffer, self, Blake2bRead, TranscriptReadBuffer}
+    transcript::{Blake2bWrite, Challenge255, TranscriptWriterBuffer, self, Blake2bRead, TranscriptReadBuffer, TranscriptRead, Transcript}
 };
 // use halo2curves::pasta_curves::EqAffine;
 use std::marker::PhantomData;
@@ -258,6 +258,10 @@ fn prove(k: u32, user_hashes: Vec<u64>, user_bal: Vec<u64>) -> Result<(), Error>
         &[&[&vec![Fp::from(total_balance)]]],
         &mut transcript.clone()
     ).unwrap();
+
+    let mut dirty_transcript = transcript.clone();
+    let a_poly_commitment = dirty_transcript.read_point()?;
+    dbg!(a_poly_commitment);
     Ok(())
 
 }
@@ -270,7 +274,7 @@ mod tests {
 
 
     #[test]
-    fn test_r1cs() {
+    fn test_mock_prover() {
         //env::set_var("RUST_BACKTRACE", "full");
         use halo2_proofs::dev::MockProver;
 
@@ -303,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_keygen() {
+    fn test_real_prover() {
         let k = 5;
         let user_hashes: Vec<u64> = vec![1, 2, 3];
         let user_bal: Vec<u64> = vec![3, 4, 10];
